@@ -1,0 +1,13 @@
+{% load i18n %}
+<ul class="list-unstyled">
+{% if networks %}
+    {% for network in networks %}
+        <li><b>{{ network }}</b></li>
+    {% endfor %}
+
+{% else %}
+    <li>---</li>
+{% endif %}
+
+
+</ul>
