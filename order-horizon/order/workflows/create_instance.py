@@ -78,8 +78,6 @@ class SelectProjectUserAction(workflows.Action):
 class SelectProjectUser(workflows.Step):
     action_class = SelectProjectUserAction
     contributes = ("project_id", "user_id")
-
-
 class SetInstanceDetailsAction(workflows.Action):
     availability_zone = forms.ThemableChoiceField(label=_("Availability Zone"),
                                                   required=False)
@@ -109,7 +107,7 @@ class SetInstanceDetailsAction(workflows.Action):
                                               filesizeformat(x.bytes)))))
     class Meta(object):
         name = _("Details")
-        help_text_template = ("project/instances/"
+        help_text_template = ("project/order/"
                               "_launch_details_help.html")
 
     def __init__(self, request, context, *args, **kwargs):
@@ -160,7 +158,7 @@ class SetInstanceDetailsAction(workflows.Action):
         # Prevent launching more instances than the quota allows
         usages = quotas.tenant_quota_usages(
             self.request,
-            targets=('instances', 'cores', 'ram', 'volumes', ))
+            targets=('instances', 'cores', 'ram', ))
         available_count = usages['instances']['available']
         if available_count < count:
             msg = (_('The requested instance(s) cannot be launched '
@@ -197,7 +195,6 @@ class SetInstanceDetailsAction(workflows.Action):
                                  "Requested: %(req)s)")
                                % {'avail': available_ram,
                                   'req': count * flavor.ram})
-
         if count_error:
             value_str = ", ".join(count_error)
             msg = (_('The requested instance cannot be launched. '
@@ -280,12 +277,27 @@ class SetInstanceDetailsAction(workflows.Action):
     def get_help_text(self, extra_context=None):
         extra = {} if extra_context is None else dict(extra_context)
         try:
-            extra['usages'] = quotas.tenant_quota_usages(
-                self.request,
-                targets=('cores', 'ram','gigabytes'))
+            data=api.order.order_hypervisor(self.request,self.context['start_time'],self.context['stop_time'])
+            total_restouce=data.get('total_resource',None)
+            free_resource=data.get('free_resource',None)
+            extra['usages']={
+                'disk':{
+                    'available':free_resource.get('disk',None),
+                    'used':total_restouce.get('disk', None) - free_resource.get('disk', None),
+                    'quota':total_restouce.get('disk',None),
+                },
+                'cores':{
+                    'available':free_resource.get('vcpus',None),
+                    'used':total_restouce.get('vcpus', None) - free_resource.get('vcpus', None),
+                    'quota':total_restouce.get('vcpus',None),
+                },
+                'ram':{
+                    'available': free_resource.get('ram',None),
+                    'used': total_restouce.get('ram', None) - free_resource.get('ram', None),
+                    'quota': total_restouce.get('ram', None),
+                }
+            }
             extra['usages_json'] = json.dumps(extra['usages'])
-            extra['cinder_enabled'] = \
-                base.is_service_enabled(self.request, 'volume')
             flavors = json.dumps([f._info for f in
                                   instance_utils.flavor_list(self.request)])
             extra['flavors'] = flavors
@@ -329,7 +341,6 @@ class SetInstanceDetailsAction(workflows.Action):
         else:
             choices.insert(0, ("", _("No images available")))
         return choices
-
 class SetInstanceDetails(workflows.Step):
     action_class = SetInstanceDetailsAction
     depends_on = ("project_id", "user_id")
@@ -362,175 +373,7 @@ class SetInstanceDetails(workflows.Step):
             context["volume_size"] = data["volume_size"]
 
         return context
-
 KEYPAIR_IMPORT_URL = "horizon:project:key_pairs:import"
-
-
-class SetAccessControlsAction(workflows.Action):
-    keypair = forms.ThemableDynamicChoiceField(
-        label=_("Key Pair"),
-        help_text=_("Key pair to use for "
-                    "authentication."),
-        add_item_link=KEYPAIR_IMPORT_URL)
-    admin_pass = forms.RegexField(
-        label=_("Admin Password"),
-        required=False,
-        widget=forms.PasswordInput(render_value=False),
-        regex=validators.password_validator(),
-        error_messages={'invalid': validators.password_validator_msg()})
-    confirm_admin_pass = forms.CharField(
-        label=_("Confirm Admin Password"),
-        required=False,
-        widget=forms.PasswordInput(render_value=False))
-    groups = forms.MultipleChoiceField(
-        label=_("Security Groups"),
-        required=False,
-        initial=["default"],
-        widget=forms.ThemableCheckboxSelectMultiple(),
-        help_text=_("Launch instance in these "
-                    "security groups."))
-
-    class Meta(object):
-        name = _("Access & Security")
-        help_text = _("Control access to your instance via key pairs, "
-                      "security groups, and other mechanisms.")
-
-    def __init__(self, request, *args, **kwargs):
-        super(SetAccessControlsAction, self).__init__(request, *args, **kwargs)
-        if not api.nova.can_set_server_password():
-            del self.fields['admin_pass']
-            del self.fields['confirm_admin_pass']
-        self.fields['keypair'].required = api.nova.requires_keypair()
-
-    def populate_keypair_choices(self, request, context):
-        keypairs = instance_utils.keypair_field_data(request, True)
-        if len(keypairs) == 2:
-            self.fields['keypair'].initial = keypairs[1][0]
-        return keypairs
-
-    def populate_groups_choices(self, request, context):
-        try:
-            groups = api.neutron.security_group_list(request)
-            security_group_list = [(sg.id, sg.name) for sg in groups]
-        except Exception:
-            exceptions.handle(request,
-                              _('Unable to retrieve list of security groups'))
-            security_group_list = []
-        return security_group_list
-
-    def clean(self):
-        '''Check to make sure password fields match.'''
-        cleaned_data = super(SetAccessControlsAction, self).clean()
-        if 'admin_pass' in cleaned_data:
-            if cleaned_data['admin_pass'] != cleaned_data.get(
-                    'confirm_admin_pass', None):
-                raise forms.ValidationError(_('Passwords do not match.'))
-        return cleaned_data
-
-
-class SetAccessControls(workflows.Step):
-    action_class = SetAccessControlsAction
-    depends_on = ("project_id", "user_id")
-    contributes = ("keypair_id", "security_group_ids",
-                   "admin_pass", "confirm_admin_pass")
-
-    def contribute(self, data, context):
-        if data:
-            post = self.workflow.request.POST
-            context['security_group_ids'] = post.getlist("groups")
-            context['keypair_id'] = data.get("keypair", "")
-            context['admin_pass'] = data.get("admin_pass", "")
-            context['confirm_admin_pass'] = data.get("confirm_admin_pass", "")
-        return context
-
-
-class CustomizeAction(workflows.Action):
-    class Meta(object):
-        name = _("Post-Creation")
-        help_text_template = ("project/instances/"
-                              "_launch_customize_help.html")
-
-    source_choices = [('', _('Select Script Source')),
-                      ('raw', _('Direct Input')),
-                      ('file', _('File'))]
-
-    attributes = {'class': 'switchable', 'data-slug': 'scriptsource'}
-    script_source = forms.ChoiceField(
-        label=_('Customization Script Source'),
-        choices=source_choices,
-        widget=forms.ThemableSelectWidget(attrs=attributes),
-        required=False)
-
-    script_help = _("A script or set of commands to be executed after the "
-                    "instance has been built (max 16kb).")
-
-    script_upload = forms.FileField(
-        label=_('Script File'),
-        help_text=script_help,
-        widget=forms.FileInput(attrs={
-            'class': 'switched',
-            'data-switch-on': 'scriptsource',
-            'data-scriptsource-file': _('Script File')}),
-        required=False)
-
-    script_data = forms.CharField(
-        label=_('Script Data'),
-        help_text=script_help,
-        widget=forms.widgets.Textarea(attrs={
-            'class': 'switched',
-            'data-switch-on': 'scriptsource',
-            'data-scriptsource-raw': _('Script Data')}),
-        required=False)
-
-    def __init__(self, *args):
-        super(CustomizeAction, self).__init__(*args)
-
-    def clean(self):
-        cleaned = super(CustomizeAction, self).clean()
-
-        files = self.request.FILES
-        script = self.clean_uploaded_files('script', files)
-
-        if script is not None:
-            cleaned['script_data'] = script
-
-        return cleaned
-
-    def clean_uploaded_files(self, prefix, files):
-        upload_str = prefix + "_upload"
-
-        has_upload = upload_str in files
-        if has_upload:
-            upload_file = files[upload_str]
-            log_script_name = upload_file.name
-            LOG.info('got upload %s', log_script_name)
-
-            if upload_file._size > 16 * units.Ki:  # 16kb
-                msg = _('File exceeds maximum size (16kb)')
-                raise forms.ValidationError(msg)
-            else:
-                script = upload_file.read()
-                if script != "":
-                    try:
-                        if not isinstance(script, six.text_type):
-                            script = script.decode()
-                        normalize_newlines(script)
-                    except Exception as e:
-                        msg = _('There was a problem parsing the'
-                                ' %(prefix)s: %(error)s')
-                        msg = msg % {'prefix': prefix,
-                                     'error': six.text_type(e)}
-                        raise forms.ValidationError(msg)
-                return script
-        else:
-            return None
-
-
-class PostCreationStep(workflows.Step):
-    action_class = CustomizeAction
-    contributes = ("script_data",)
-
-
 class SetNetworkAction(workflows.Action):
     network = forms.MultipleChoiceField(
         label=_("Networks"),
@@ -562,8 +405,6 @@ class SetNetworkAction(workflows.Action):
 
     def populate_network_choices(self, request, context):
         return instance_utils.network_field_data(request, for_launch=True)
-
-
 class SetNetwork(workflows.Step):
     action_class = SetNetworkAction
     template_name = "project/instances/_update_networks.html"
@@ -578,12 +419,10 @@ class SetNetwork(workflows.Step):
             if networks:
                 context['network_id'] = networks
         return context
-
-
 class SetOrderAction(workflows.Action):
-    start_time = forms.DateTimeField(label=_("Start Time")
+    start_time = forms.DateTimeField(label=_("Start Time"),disabled=True
                            )
-    stop_time = forms.DateTimeField(label=_("Stop Time")
+    stop_time = forms.DateTimeField(label=_("Stop Time"),disabled=True
                            )
     def __init__(self, request, *args, **kwargs):
         super(SetOrderAction, self).__init__(request, *args, **kwargs)
@@ -597,112 +436,14 @@ class SetOrderAction(workflows.Action):
     class Meta(object):
         name = _("Order")
         help_text = _("Select Order for your instance.")
-
 class SetOrder(workflows.Step):
     action_class = SetOrderAction
-    contributes = ("start_time","stop_time",)
+    contributes = ("start_time","stop_time")
 
     def contribute(self, data, context):
         context["start_time"] = data.get("start_time", None)
         context["stop_time"] = data.get("stop_time", None)
         return context
-
-class SetNetworkPortsAction(workflows.Action):
-    ports = forms.MultipleChoiceField(label=_("Ports"),
-                                      widget=forms.CheckboxSelectMultiple(),
-                                      required=False,
-                                      help_text=_("Launch instance with"
-                                                  " these ports"))
-
-    class Meta(object):
-        name = _("Network Ports")
-        permissions = ('openstack.services.network',)
-        help_text_template = ("project/instances/"
-                              "_launch_network_ports_help.html")
-
-    def populate_ports_choices(self, request, context):
-        ports = instance_utils.port_field_data(request)
-        if not ports:
-            self.fields['ports'].label = _("No ports available")
-            self.fields['ports'].help_text = _("No ports available")
-        return ports
-
-
-class SetNetworkPorts(workflows.Step):
-    action_class = SetNetworkPortsAction
-    contributes = ("ports",)
-
-    def contribute(self, data, context):
-        if data:
-            ports = self.workflow.request.POST.getlist("ports")
-            if ports:
-                context['ports'] = ports
-        return context
-
-
-class SetAdvancedAction(workflows.Action):
-    disk_config = forms.ThemableChoiceField(
-        label=_("Disk Partition"), required=False,
-        help_text=_("Automatic: The entire disk is a single partition and "
-                    "automatically resizes. Manual: Results in faster build "
-                    "times but requires manual partitioning."))
-    config_drive = forms.BooleanField(
-        label=_("Configuration Drive"),
-        required=False, help_text=_("Configure OpenStack to write metadata to "
-                                    "a special configuration drive that "
-                                    "attaches to the instance when it boots."))
-    server_group = forms.ThemableChoiceField(
-        label=_("Server Group"), required=False,
-        help_text=_("Server group to associate with this instance."))
-
-    def __init__(self, request, context, *args, **kwargs):
-        super(SetAdvancedAction, self).__init__(request, context,
-                                                *args, **kwargs)
-        try:
-            if not api.nova.extension_supported("DiskConfig", request):
-                del self.fields['disk_config']
-            else:
-                # Set our disk_config choices
-                config_choices = [("AUTO", _("Automatic")),
-                                  ("MANUAL", _("Manual"))]
-                self.fields['disk_config'].choices = config_choices
-            # Only show the Config Drive option for the Launch Instance
-            # workflow (not Resize Instance) and only if the extension
-            # is supported.
-            if context.get('workflow_slug') != 'launch_instance' or (
-                    not api.nova.extension_supported("ConfigDrive", request)):
-                del self.fields['config_drive']
-
-            if not api.nova.extension_supported("ServerGroups", request):
-                del self.fields['server_group']
-            else:
-                server_group_choices = instance_utils.server_group_field_data(
-                    request)
-                self.fields['server_group'].choices = server_group_choices
-        except Exception:
-            exceptions.handle(request, _('Unable to retrieve extensions '
-                                         'information.'))
-
-    class Meta(object):
-        name = _("Advanced Options")
-        help_text_template = ("project/instances/"
-                              "_launch_advanced_help.html")
-
-
-class SetAdvanced(workflows.Step):
-    action_class = SetAdvancedAction
-    contributes = ("disk_config", "config_drive", "server_group",)
-
-    def prepare_action_context(self, request, context):
-        context = super(SetAdvanced, self).prepare_action_context(request,
-                                                                  context)
-        # Add the workflow slug to the context so that we can tell which
-        # workflow is being used when creating the action. This step is
-        # used by both the Launch Instance and Resize Instance workflows.
-        context['workflow_slug'] = self.workflow.slug
-        return context
-
-
 class LaunchOrder(workflows.Workflow):
     slug = "launch_order"
     name = _("Launch Order")
@@ -712,8 +453,8 @@ class LaunchOrder(workflows.Workflow):
     failure_message = _('Unable to launch %(count)s named "%(name)s".')
     success_url = "horizon:project:order:index"
     multipart = True
-    default_steps = (SelectProjectUser,
-                     SetOrder,
+    default_steps = (SetOrder,
+                     SelectProjectUser,
                      SetInstanceDetails,
                      SetNetwork,)
 
@@ -729,7 +470,6 @@ class LaunchOrder(workflows.Workflow):
     @sensitive_variables('context')
     def handle(self, request, context):
         image_id = ''
-        # Determine volume mapping options
         source_type = context.get('source_type', None)
         if source_type in ['image_id', 'instance_snapshot_id']:
             image_id = context['source_id']
@@ -739,11 +479,9 @@ class LaunchOrder(workflows.Workflow):
                     for netid in netids]
         else:
             nics = None
-        avail_zone = context.get('availability_zone', None)
-        scheduler_hints = {}
-        start_time = context.get('start_time', None)
-        stop_time = context.get('stop_time', None)
-        print(start_time,stop_time)
+        print(context.get('start_time'))
+        start_time=context.get('start_time')
+        stop_time=context.get('stop_time')
         try:
             api.order.order_create(request,
                                    name=context['name'],

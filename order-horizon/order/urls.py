@@ -17,6 +17,7 @@ from openstack_dashboard.dashboards.project.order import views
 INSTANCES = r'^(?P<instance_id>[^/]+)/%s$'
 urlpatterns = [
     url(r'^$', views.IndexView.as_view(), name='index'),
-    url(r'^launch$', views.LaunchOrderView.as_view(), name='launch'),
+    url(r'^launch/(?P<start_time>[^/]+)/(?P<stop_time>[^/]+)$', views.LaunchOrderView.as_view(), name='launch'),
     url(INSTANCES % 'associate', views.BindFloatView.as_view(), name='associate'),
+    url( '^ordertime$', views.OrderTimeView.as_view(), name='ordertime'),
 ]

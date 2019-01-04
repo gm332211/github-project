@@ -34,21 +34,12 @@ class LaunchOrderView(workflows.WorkflowView):
     def get_initial(self):
         initial = super(LaunchOrderView, self).get_initial()
         initial['project_id'] = self.request.user.tenant_id
+        initial['start_time']=self.kwargs.get('start_time',None)
+        initial['stop_time'] = self.kwargs.get('stop_time', None)
         initial['user_id'] = self.request.user.id
         defaults = getattr(settings, 'LAUNCH_INSTANCE_DEFAULTS', {})
         initial['config_drive'] = defaults.get('config_drive', False)
         return initial
-
-
-class AssociateView(workflows.WorkflowView):
-    workflow_class = project_workflows.IPAssociationWorkflow
-# class IndexView(generic.TemplateView):
-#     # A very simple class-based view...
-#     template_name = 'project/order/index.html'
-#     def get_data(self, request, context, *args, **kwargs):
-#         # Add data to the context here...
-#         context['breadcrumb_nav']='order'
-#         return context
 class BindFloatView(forms.ModalFormView):
     form_class = project_forms.OrderFloatForm
     template_name = 'project/order/bindfloat.html'
@@ -66,3 +57,18 @@ class BindFloatView(forms.ModalFormView):
     def get_initial(self,*args,**kwargs):
         initial = {'instance_id': self.kwargs['instance_id']}
         return initial
+class OrderTimeView(forms.ModalFormView):
+    form_class = project_forms.OrderTimeForm
+    template_name = 'project/order/ordertime.html'
+    # success_url = reverse_lazy('horizon:project:order:launch',kwargs=self.kwargs)
+    page_title = _("Order Time")
+    submit_label = _(" Next Step")
+    def get_initial(self,*args,**kwargs):
+        pass
+    def get_success_url(self):
+        start_time=self.request.POST.get('start_time',None)
+        stop_time = self.request.POST.get('stop_time', None)
+        if start_time and stop_time:
+            return reverse_lazy('horizon:project:order:launch',kwargs={'start_time':start_time,'stop_time':stop_time})
+        else:
+            return reverse_lazy('horizon:project:order:ordertime')

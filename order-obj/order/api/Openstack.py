@@ -28,13 +28,14 @@ def auth_token(func):
         if not self.token:
             self.get_token()
         data = func(self, *args, **kwargs)
+        error_code = False
         try:
             error_code=data['error']['code']
         except:
-            error_code=None
-        if error_code=='401':
+            pass
+        if error_code:
             self.get_token()
-            data = func(self,*args, **kwargs)
+            data = func(self, *args, **kwargs)
         return data
     return inner
 class Openstack(object):
@@ -55,6 +56,7 @@ class Openstack(object):
         self.token = None
         self.conn = conn
 #Service Base
+    @auth_token
     def identity_request(self, server, method, headers=None, data=None, echo=None):
         ip = self.ip
         port = lease_conf.keystone_auth.get('port', None)
@@ -68,6 +70,7 @@ class Openstack(object):
                 "Content-type": "application/json",
             }
         return http_request(ip=ip, port=port, url=url, method=method, headers=headers, data=data)
+    @auth_token
     def compute_request(self, server, method, headers=None, data=None, echo=None):
         ip = self.ip
         port = lease_conf.compute_auth.get('port', None)
@@ -84,6 +87,7 @@ class Openstack(object):
                 "X-Auth-Token": self.token,
             }
         return http_request(ip=ip, port=port, url=url, method=method, headers=headers, data=data)
+    @auth_token
     def network_request(self, server, method, headers=None, data=None, echo=None):
         ip = self.ip
         port = lease_conf.network_auth.get('port', None)
@@ -100,15 +104,27 @@ class Openstack(object):
                 "X-Auth-Token": self.token,
             }
         return http_request(ip=ip, port=port, url=url, method=method, headers=headers, data=data)
+    def get_token_request(self, server, method, headers=None, data=None, echo=None):
+        ip = self.ip
+        port = lease_conf.keystone_auth.get('port', None)
+        keystone_url = lease_conf.keystone_auth.get('url', None)
+        version = lease_conf.keystone_auth.get('version', None)
+        url = '%s/%s/%s' % (keystone_url, version, server)
+        if echo:
+            print('keystone request url:[%s]%s' % (method, url))
+        if not headers:
+            headers = {
+                "Content-type": "application/json",
+            }
+        return http_request(ip=ip, port=port, url=url, method=method, headers=headers, data=data)
     def get_token(self):
         data = {"auth": {"identity": {"methods": ["password"],
                                       "password": {"user": {"name": self.username, "password": self.password,
                                                             "domain": {"name": self.domain}}}},
                          "scope": {"project": {"name": self.project, "domain": {"name": self.domain}}}}}
-        res = self.identity_request(server='auth/tokens', method='POST', data=data)
+        res = self.get_token_request(server='auth/tokens', method='POST', data=data)
         self.token = res.getheader('X-Subject-Token')
 #Openstack API Request
-    @auth_token
     def get_user(self,user_token):
         headers = {
             "Content-type": "application/json",
@@ -119,7 +135,6 @@ class Openstack(object):
                               headers=headers)
         data = json.loads(res.read())
         return data
-    @auth_token
     def get_user_id(self,user_token):
         data=self.get_user(user_token)
         try:
@@ -127,7 +142,6 @@ class Openstack(object):
         except:
             user_id=None
         return user_id
-    @auth_token
     def add_role(self, project_id, user_id):
         role=self.get_role(role_type='user')
         headers = {
@@ -136,7 +150,6 @@ class Openstack(object):
         }
         self.identity_request('projects/%s/users/%s/roles/%s' % (project_id, user_id, role.id), method='PUT',
                               headers=headers)
-    @auth_token
     def get_role(self,role_type='user'):
         if role_type=='user':
             role_name=lease_conf.USERROLE
@@ -144,7 +157,6 @@ class Openstack(object):
             role_name = lease_conf.ADMINROLE
         role=self.conn.identity.find_role(name_or_id=role_name)
         return role
-    @auth_token
     def list_projects(self,user_id):
         headers = {
             "Content-type": "application/json",
@@ -161,7 +173,6 @@ class Openstack(object):
             for project in projects:
                 project_id_list.append(project.get('id',None))
         return project_id_list
-    @auth_token
     def update_quota(self,project_id,cores,ram,count):
         data={
             "quota_set": {
@@ -172,12 +183,10 @@ class Openstack(object):
             }
         }
         self.compute_request('os-quota-sets/%s' % project_id, method='PUT',data=data)
-    @auth_token
     def get_quota(self,project_id):
         res=self.compute_request('os-quota-sets/%s' % project_id, method='GET')
         data=json.loads(res.read())
         return data
-    @auth_token
     def list_port(self,subnet_id):
         url='ports?fixed_ips=subnet_id%3D'+subnet_id
         res=self.network_request(url,'GET')
@@ -187,6 +196,27 @@ class Openstack(object):
             return ports
         else:
             return []
+    def hypervisors_stats(self):
+        res=self.compute_request('/os-hypervisors/statistics','GET')
+        data=json.loads(res.read())
+        print(data)
+        hypervisors=data.get('hypervisor_statistics',None)
+        return hypervisors
+    def network_hypervisors_stats(self):
+        network_count = {}
+        network_count['total'] = {}
+        network_count['free'] = {}
+        for network in self.list_network():
+            for subnet in self.list_subnetwork(network.get('id')):
+                addr_count = 0
+                for all_pools in subnet.get('allocation_pools'):
+                    start = all_pools.get('start').split('.')[3]
+                    end = all_pools.get('end').split('.')[3]
+                    addr_count += int(end) - int(start)
+                ports = self.list_port(subnet_id=subnet.get('id'))
+                network_count['total'][network.get('id')] = addr_count
+                network_count['free'][network.get('id')] = addr_count - len(ports)
+        return network_count
     def list_network(self):
         res = self.network_request('networks?shared=True', 'GET')
         data=json.loads(res.read())
@@ -195,7 +225,6 @@ class Openstack(object):
             return networks
         else:
             return []
-
     def list_subnetwork(self,network_id):
         res = self.network_request('subnets?network_id=%s&ip_version=4'%network_id, 'GET')
         data = json.loads(res.read())
@@ -204,6 +233,30 @@ class Openstack(object):
             return subnet
         else:
             return []
+    def get_extnetworks(self):
+        extnetworks_list = []
+        res = self.network_request('networks?router:external=True&fields=id&fields=name', 'GET')
+        networks = json.loads(res.read())
+        for network in networks.get('networks', []):
+            extnetworks_dict = {}
+            extnetworks_dict['id'] = network.get('id', None)
+            extnetworks_dict['name'] = network.get('name', None)
+            extnetworks_list.append(extnetworks_dict)
+        return extnetworks_list
+    def get_port_device(self,network_id, is_extnetwork=False):
+        ports_id_list = []
+        if is_extnetwork:
+            res = self.network_request(
+                'ports?network_id=%s&device_owner=network:router_gateway&fields=device_id' % network_id,
+                'GET')
+        else:
+            res = self.network_request(
+                'ports?network_id=%s&device_owner=network:router_interface&fields=device_id' % network_id,
+                'GET')
+        data = json.loads(res.read())
+        for port in data.get('ports', []):
+            ports_id_list.append(port.get('device_id'))
+        return ports_id_list
 #Openstack API Request
     def create_project(self, name, domain_id=None, *args, **kwargs):
         if not domain_id:
@@ -235,50 +288,6 @@ class Openstack(object):
         return self.conn.compute.find_flavor(name_or_id=name_or_id)
     def delte_server(self,server_id):
         self.conn.compute.delete_server(server_id=server_id)
-    def hypervisors_stats(self):
-        res=self.compute_request('/os-hypervisors/statistics','GET')
-        data=json.loads(res.read())
-        hypervisors=data.get('hypervisor_statistics',None)
-        return hypervisors
-    def network_hypervisors_stats(self):
-        network_count = {}
-        network_count['total'] = {}
-        network_count['free'] = {}
-        for network in self.list_network():
-            for subnet in self.list_subnetwork(network.get('id')):
-                addr_count = 0
-                for all_pools in subnet.get('allocation_pools'):
-                    start = all_pools.get('start').split('.')[3]
-                    end = all_pools.get('end').split('.')[3]
-                    addr_count += int(end) - int(start)
-                ports = self.list_port(subnet_id=subnet.get('id'))
-                network_count['total'][network.get('id')] = addr_count
-                network_count['free'][network.get('id')] = addr_count - len(ports)
-        return network_count
-    def get_extnetworks(self):
-        extnetworks_list = []
-        res = self.network_request('networks?router:external=True&fields=id&fields=name', 'GET')
-        networks = json.loads(res.read())
-        for network in networks.get('networks', []):
-            extnetworks_dict = {}
-            extnetworks_dict['id'] = network.get('id', None)
-            extnetworks_dict['name'] = network.get('name', None)
-            extnetworks_list.append(extnetworks_dict)
-        return extnetworks_list
-    def get_port_device(self,network_id, is_extnetwork=False):
-        ports_id_list = []
-        if is_extnetwork:
-            res = self.network_request(
-                'ports?network_id=%s&device_owner=network:router_gateway&fields=device_id' % network_id,
-                'GET')
-        else:
-            res = self.network_request(
-                'ports?network_id=%s&device_owner=network:router_interface&fields=device_id' % network_id,
-                'GET')
-        data = json.loads(res.read())
-        for port in data.get('ports', []):
-            ports_id_list.append(port.get('device_id'))
-        return ports_id_list
     def verify_bind_float(self,innetwork_id, ext_network_id):
         ext_devices = self.get_port_device(network_id=ext_network_id, is_extnetwork=True)
         in_devices = self.get_port_device(network_id=innetwork_id)
@@ -305,7 +314,6 @@ class Openstack(object):
                     float_networks.append(bind_float)
                     ext_devices_dict.pop(in_device)
         return float_networks
-
     def close(self):
         del self.conn
 class UserOpenstack(object):
@@ -319,6 +327,7 @@ class UserOpenstack(object):
         self.domain = domain
         self.token = None
     # Service Base
+    @auth_token
     def identity_request(self, server, method, headers=None, data=None, echo=None):
         ip = self.ip
         port = lease_conf.keystone_auth.get('port', None)
@@ -332,6 +341,7 @@ class UserOpenstack(object):
                 "Content-type": "application/json",
             }
         return http_request(ip=ip, port=port, url=url, method=method, headers=headers, data=data)
+    @auth_token
     def compute_request(self, server, method, headers=None, data=None, echo=None):
         ip = self.ip
         port = lease_conf.compute_auth.get('port', None)
@@ -348,6 +358,8 @@ class UserOpenstack(object):
                 "X-Auth-Token": self.token,
             }
         return http_request(ip=ip, port=port, url=url, method=method, headers=headers, data=data)
+
+    @auth_token
     def network_request(self, server, method, headers=None, data=None, echo=None):
         ip = self.ip
         port = lease_conf.network_auth.get('port', None)
@@ -364,24 +376,34 @@ class UserOpenstack(object):
                 "X-Auth-Token": self.token,
             }
         return http_request(ip=ip, port=port, url=url, method=method, headers=headers, data=data)
+    def get_token_request(self, server, method, headers=None, data=None, echo=None):
+        ip = self.ip
+        port = lease_conf.keystone_auth.get('port', None)
+        keystone_url = lease_conf.keystone_auth.get('url', None)
+        version = lease_conf.keystone_auth.get('version', None)
+        url = '%s/%s/%s' % (keystone_url, version, server)
+        if echo:
+            print('keystone request url:[%s]%s' % (method, url))
+        if not headers:
+            headers = {
+                "Content-type": "application/json",
+            }
+        return http_request(ip=ip, port=port, url=url, method=method, headers=headers, data=data)
     def get_token(self):
         data = {"auth": {"identity": {"methods": ["password"],
                                       "password": {"user": {"name": self.username, "password": self.password,
                                                             "domain": {"name": self.domain}}}},
                          "scope": {"project": {"id": self.project_id, "domain": {"name": self.domain}}}}}
-        res = self.identity_request(server='auth/tokens', method='POST', data=data)
+        res = self.get_token_request(server='auth/tokens', method='POST', data=data)
         self.token = res.getheader('X-Subject-Token')
-    @auth_token
+
     def create_server(self,*args,**kwargs):
         res=self.compute_request('servers', method='POST', data=args[0])
         data=json.loads(res.read())
         return data
-    @auth_token
     def delete_server(self,server_id_list):
         for server_id in server_id_list:
             self.compute_request('servers/%s'%server_id, method='DELETE')
-
-    @auth_token
     def list_server(self):
         res=self.compute_request('servers', method='GET')
         data=json.loads(res.read())

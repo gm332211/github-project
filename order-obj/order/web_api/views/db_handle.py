@@ -1,24 +1,39 @@
 #-*- coding: utf-8 -*-
 from db.openstack_db import Group,Network
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine,or_
 from sqlalchemy.orm import sessionmaker
 from conf import openstack_setting as lease_conf
 import datetime
-engine = create_engine(lease_conf.ENGINE,encoding='utf-8', echo=False)
-DBSession=sessionmaker(bind=engine,autocommit=False,autoflush=False)
+def auth_session(func):
+    def inner(self,*args,**kwargs):
+        try:
+            data = func(self, *args, **kwargs)
+        except Exception as e:
+            self.get_session()
+            data = func(self, *args, **kwargs)
+        return data
+    return inner
 class DBStore():
     def __init__(self):
+        pass
+    def get_session(self):
+        engine = create_engine(lease_conf.ENGINE, encoding='utf-8', echo=False)
+        DBSession = sessionmaker(bind=engine, autocommit=False, autoflush=False)
         self.session = DBSession()
+    @auth_session
     def order_list(self,user_id):
         self.session.commit()
         # groups = self.session.query(Group).filter(Group.project_id.in_(project_id_list)).all()
         groups = self.session.query(Group).filter(Group.user_id==user_id).all()
+        print(groups)
         return groups
+    @auth_session
     def order_get(self,user_id,order_id):
         self.session.commit()
         # groups = self.session.query(Group).filter(Group.project_id.in_(project_id_list)).all()
         groups = self.session.query(Group).filter(Group.id==order_id).filter(Group.user_id==user_id).first()
         return groups
+    @auth_session
     def order_disbinding_flaot(self,user_id,order_id):
         group=self.order_get(user_id,order_id)
         if group:
@@ -27,6 +42,7 @@ class DBStore():
                 self.session.commit()
             return True
         return False
+    @auth_session
     def order_action(self,user_id,order_id,server_type):
         group=self.order_get(user_id,order_id)
         if group:
@@ -34,12 +50,14 @@ class DBStore():
             self.session.commit()
             return True
         return False
+    @auth_session
     def verify_network(self,network_id):
         self.session.commit()
         network = self.session.query(Network).filter(Network.id==network_id).first()
         if network:
             return network.in_network
         return False
+    @auth_session
     def update_flaot_network(self,network_id,ext_network):
         self.session.commit()
         network = self.session.query(Network).filter(Network.id==network_id).first()
@@ -49,6 +67,7 @@ class DBStore():
             return True
         else:
             return False
+    @auth_session
     def order_network_id_list(self,user_id,order_id):
         in_network_list=[]
         obj=self.order_get(user_id,order_id)
@@ -59,25 +78,31 @@ class DBStore():
                 network_dic['in_network']=network.in_network
                 in_network_list.append(network_dic)
         return in_network_list
+    @auth_session
     def order_select(self,user_id,id):
         group=self.session.query(Group).filter(Group.user_id==user_id).filter(Group.id==id).first()
         return group
+    @auth_session
     def order_create(self,name,image_id,flavor_id,internal_network,start_time,stop_time,count,status,user_id,project_id=None):
         network_obj=self.network_create(internal_network)
         group=Group(name=name, image_id=image_id, flavor_id=flavor_id,start_time=start_time,
                     stop_time=stop_time,count=count,status=status,project_id=project_id,user_id=user_id,network=network_obj)
         self.session.add(group)
         self.session.commit()
+    @auth_session
     def order_delete(self,user_id,delete_id):
         obj=self.order_select(user_id,delete_id)
         self.delete_db(obj)
+    @auth_session
     def order_update(self):
         pass
+    @auth_session
     def order_user_verify(self,user_id,order_id):
         obj=self.order_select(user_id=user_id,id=order_id)
         if obj:
             return True
         return False
+    @auth_session
     def network_create(self,networks):
         networks_obj=[]
         if networks:
@@ -89,7 +114,7 @@ class DBStore():
                     self.session.commit()
                     networks_obj.append(network)
         return networks_obj
-
+    @auth_session
     def resource_compute(self, start_time):
         flavor_id_list=[]
         in_use=self.session.query(Group).filter(Group.start_time<start_time).filter(Group.stop_time>start_time).filter(Group.status=='wait')
@@ -97,11 +122,11 @@ class DBStore():
             for use in in_use:
                 flavor_id_list.append(use.flavor_id)
         return flavor_id_list
-
+    @auth_session
     def use_resource_db(self):
         order_list = []
         date_now = datetime.datetime.now()
-        objs = self.session.query(Group).filter(Group.stop_time > date_now).filter(Group.status == 'created')
+        objs = self.session.query(Group).filter(Group.stop_time > date_now).filter(Group.status != 'dead',Group.status != 'wait').all()
         for obj in objs:
             order_dict={}
             order_dict['count']=int(obj.count)
@@ -114,7 +139,7 @@ class DBStore():
                     order_dict['network_id'].append(network.ext_network)
             order_list.append(order_dict)
         return order_list
-
+    @auth_session
     def occupy_order_db(self,start_time, stop_time):
         order_list = []
         objs = self.session.query(Group).filter(Group.start_time <= stop_time, Group.stop_time >= start_time,
@@ -132,6 +157,7 @@ class DBStore():
                         order_dict['network_id'].append(network.ext_network)
                 order_list.append(order_dict)
         return order_list
+    @auth_session
     def delete_db(self,db_obj):
         self.session.delete(db_obj)
         self.session.commit()

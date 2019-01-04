@@ -12,7 +12,8 @@ from api import connect
 conn=connect.Conn()
 op=Openstack.Openstack(conn)
 app=Flask(__name__)
-db= db_handle.DBStore()
+db=db_handle.DBStore()
+db.get_session()
 #flavor cookie
 flavor_dict=op.list_flavor()
 global_resource={}
@@ -48,6 +49,7 @@ def get_network_resource(resource_list):
     return network_count
 def total_resource(start_time,stop_time):
     data=op.hypervisors_stats()
+    print(data)
     network_data=op.network_hypervisors_stats()
     if not global_resource:
         global_resource['ram']=data.get('memory_mb')
@@ -66,7 +68,6 @@ def total_resource(start_time,stop_time):
     occupy_resource=db.occupy_order_db(start_time, stop_time)
     occupy_flavor_resource=get_flavor_resource(occupy_resource)
     occupy_network_resource=get_network_resource(occupy_resource)
-
     sum_ram=free_resource.get('ram')+order_flavor_resource.get('ram')-occupy_flavor_resource.get('ram')
     sum_vcpus=free_resource.get('vcpus')+order_flavor_resource.get('vcpus')-occupy_flavor_resource.get('vcpus')
     sum_disk=free_resource.get('disk')+order_flavor_resource.get('disk')-occupy_flavor_resource.get('disk')
@@ -105,7 +106,6 @@ def order_create():
                         start_time=startTime, stop_time=stopTime, count=count, status=status,project_id=project.id,user_id=user_id)
     except Exception as e:
         response_data['status']='401'
-        print(e)
     return jsonify(response_data)
 @app.route('/orders',methods=['GET'])
 def order_list():
@@ -230,8 +230,14 @@ def order_action(order_id,server_type):
     return jsonify({'status':401})
 @app.route('/orders/hypervisor/<start_time>/<stop_time>', methods=['GET'])
 def order_hypervisor(start_time,stop_time):
-    start_time=datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
-    stop_time = datetime.datetime.strptime(stop_time, '%Y-%m-%d %H:%M:%S')
+    if start_time=='None':
+        start_time=datetime.datetime.now()
+    else:
+        start_time = datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M')
+    if stop_time=='None':
+        stop_time = datetime.datetime.now()
+    else:
+        stop_time = datetime.datetime.strptime(stop_time, '%Y-%m-%d %H:%M')
     data=total_resource(start_time,stop_time)
     return jsonify({'free_resource':data,'total_resource':global_resource})
 app.run('0.0.0.0',port=int(lease_conf.WEBPORT),debug=True,threaded=True)

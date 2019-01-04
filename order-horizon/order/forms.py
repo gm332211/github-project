@@ -2,6 +2,7 @@ from django.utils.translation import ugettext_lazy as _
 from horizon import forms
 from django.views.decorators.debug import sensitive_variables
 from openstack_dashboard.api import order
+from django.shortcuts import render,redirect
 class OrderFloatForm(forms.SelfHandlingForm):
     instance_id = forms.CharField(widget=forms.HiddenInput())
     ext_network=forms.ChoiceField(
@@ -50,7 +51,25 @@ class OrderFloatForm(forms.SelfHandlingForm):
             return True
         else:
             return False
+class OrderTimeForm(forms.SelfHandlingForm):
+    start_time = forms.DateTimeField(label=_("Start Time"))
+    stop_time =forms.DateTimeField(label=_("Stop Time"))
+    def __init__(self, request, *args, **kwargs):
+        super(OrderTimeForm, self).__init__(request, *args, **kwargs)
 
+    def clean(self):
+        cleaned_data = super(OrderTimeForm, self).clean()
+        return cleaned_data
+    @sensitive_variables('data')
+    def handle(self, request, data):
+        start_time = data.get('start_time')
+        stop_time = data.get('stop_time')
+        # order_hypervisor=order.order_hypervisor(request,start_time.strftime('%Y-%m-%d %H:%M:%S'),stop_time.strftime('%Y-%m-%d %H:%M:%S'))
+
+        if start_time and stop_time:
+            return True
+        else:
+            return False
 class Disassociate(forms.SelfHandlingForm):
     instance_id = forms.CharField(widget=forms.HiddenInput())
 

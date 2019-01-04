@@ -1,0 +1,34 @@
+{% load i18n sizeformat %}
+<div class="quota-dynamic">
+  <h3 class="quota-heading">{% trans "Usage Summary" %}</h3>
+</div>
+<div class="usage_info_wrapper">
+
+  {% with start=form.start end=form.end datepicker_id='date_form' %}
+    {% include 'horizon/common/_datepicker_form.html' %}
+  {% endwith %}
+<div><h4><b>Total resource</b></h4>
+  <dl id="activity" class="dl-horizontal">
+    <dt class="small">{% trans "RAM:" %}</dt>
+    <dd class="small">{{ total_resource.ram|floatformat:0|default:'0' }}<b>&nbspMB</b></dd>
+    <dt class="small">{% trans "VCPU:" %}</dt>
+    <dd class="small">{{ total_resource.vcpus|floatformat:0|default:'0' }}</dd>
+    <dt class="small">{% trans "DISK:" %}</dt>
+    <dd class="small">{{ total_resource.disk|floatformat:0|default:'0' }}<b>&nbspGB</b></dd>
+    <dt class="small">{% trans "PORT:" %}</dt>
+    <dd class="small">{{ total_port}}</dd>
+  </dl>
+    </div>
+<div><h4><b>Free resource</b></h4>
+  <dl id="activity" class="dl-horizontal">
+    <dt class="small">{% trans "RAM:" %}</dt>
+    <dd class="small">{{ free_resource.ram|floatformat:0|default:'0' }}<b>&nbspMB</b></dd>
+    <dt class="small">{% trans "VCPU:" %}</dt>
+    <dd class="small">{{ free_resource.vcpus|floatformat:0|default:'0' }}</dd>
+    <dt class="small">{% trans "DISK:" %}</dt>
+    <dd class="small">{{ free_resource.disk|floatformat:0|default:'0' }}<b>&nbspGB</b></dd>
+    <dt class="small">{% trans "PORT:" %}</dt>
+    <dd class="small">{{ free_port}}</dd>
+  </dl>
+    </div>
+</div>

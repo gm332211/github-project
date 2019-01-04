@@ -4,6 +4,7 @@ from openstack_dashboard.api import base
 from django.conf import settings
 from openstack_dashboard import api
 from openstack_dashboard.local import local_settings
+import urllib
 flavors_dic={}
 images_dic={}
 networks_dic={}
@@ -41,7 +42,7 @@ def http_request(ip,port,method,url,headers,data):
         pass
     return res
 def order_request(server,method,token,data=None):
-    ip=local_settings.OPENSTACK_HOST
+    ip=local_settings.LEASE_IP
     port=local_settings.LEASE_PORT
     url='http://%s:%s/%s'%(ip,port,server)
     headers={
@@ -118,6 +119,13 @@ def order_action(request,order_id,server_type):
         data = json.loads(res.read())
         return data
     return {}
+def order_hypervisor(request,start_time,stop_time):
+    res = order_request(urllib.quote(('orders/hypervisor/%s/%s'%(start_time,stop_time))), 'GET',token=request.user.token.id)
+    data={}
+    if res:
+        data = json.loads(res.read())
+        return data
+    return data
 def order_create(request,name,image_id,flavor_id,nics,start_time,stop_time,count):
     data={
         'token':request.user.token.id,

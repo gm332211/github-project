@@ -55,7 +55,7 @@ class MyFilterAction(tables.FilterAction):
 class LaunchLink(tables.LinkAction):
     name = "launch"
     verbose_name = _("Launch Order")
-    url = "horizon:project:order:launch"
+    url = "horizon:project:order:ordertime"
     classes = ("ajax-modal", "btn-launch")
     icon = "cloud-upload"
     policy_rules = (("compute", "os_compute_api:servers:create"),)
