@@ -9,29 +9,41 @@ flavors_dic={}
 images_dic={}
 networks_dic={}
 def get_images(request):
-    images,more,prev = api.glance.image_list_detailed(
-        request,
-        paginate=True,
-        sort_dir='asc',
-        sort_key='name',)
-    for image in images:
-        if not image.id in images_dic:
-            images_dic[image.id] = image.name
+    try:
+        images,more,prev = api.glance.image_list_detailed(
+            request,
+            paginate=True,
+            sort_dir='asc',
+            sort_key='name',)
+    except:
+        images=[]
+    if images:
+        for image in images:
+            if not image.id in images_dic:
+                images_dic[image.id] = image.name
 def get_flavors(request):
-    flavors=api.nova.flavor_list(request)
-    for flavor in flavors:
-        if not flavor.id in flavors_dic:
-            flavors_dic[flavor.id]={
-                'flavor_name':flavor.name,
-                'disk':flavor.disk,
-                'vcpu':flavor.vcpus,
-                'ram':flavor.ram
-            }
+    try:
+        flavors=api.nova.flavor_list(request)
+    except:
+        flavors=[]
+    if flavors:
+        for flavor in flavors:
+            if not flavor.id in flavors_dic:
+                flavors_dic[flavor.id]={
+                    'flavor_name':flavor.name,
+                    'disk':flavor.disk,
+                    'vcpu':flavor.vcpus,
+                    'ram':flavor.ram
+                }
 def get_networks(request):
-    networks=api.neutron.network_list(request)
-    for network in networks:
-        if not network.id in networks_dic:
-            networks_dic[network.id] = network.name
+    try:
+        networks=api.neutron.network_list(request)
+    except:
+        networks=[]
+    if networks:
+        for network in networks:
+            if not network.id in networks_dic:
+                networks_dic[network.id] = network.name
 def http_request(ip,port,method,url,headers,data):
     res=None
     conn=httplib.HTTPConnection(ip,port)
@@ -192,33 +204,39 @@ class Order(base.APIResourceWrapper):
         image=images_dic.get(self.image_id, None)
         if not image:
             get_images(self.request)
-            image = images_dic.get(self.image_id, None)
+            image = images_dic.get(self.image_id, '-')
         return image
     @property
     def flavor_name(self):
-        flavors=flavors_dic.get(self.flavor_id, None).get('flavor_name',None)
+        try:
+            flavors=flavors_dic.get(self.flavor_id, None).get('flavor_name',None)
+        except:
+            flavors=None
         if not flavors:
             get_flavors(self.request)
-            flavors = flavors_dic.get(self.flavor_id, None).get('flavor_name',None)
+            try:
+                flavors = flavors_dic.get(self.flavor_id).get('flavor_name','-')
+            except:
+                flavors='-'
         return flavors
     @property
     def internal_network_name(self):
         network_list=[]
         for network_id in self.internal_network:
-            network=networks_dic.get(network_id,None)
+            network=networks_dic.get(network_id,'-')
             if not network:
                 get_networks(self.request)
-                network = networks_dic.get(network_id, None)
+                network = networks_dic.get(network_id, '-')
             network_list.append(network)
         return network_list
     @property
     def extenal_network_name(self):
         network_list = []
         for network_id in self.extenal_network:
-            network=networks_dic.get(network_id,None)
+            network=networks_dic.get(network_id,'-')
             if not network:
                 get_networks(self.request)
-                network = networks_dic.get(network_id, None)
+                network = networks_dic.get(network_id, '-')
             network_list.append(network)
         return network_list
     @property
