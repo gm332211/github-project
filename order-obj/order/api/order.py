@@ -7,8 +7,6 @@ conn = connect.Conn()
 start_q = Queue.Queue()
 stop_q = Queue.Queue()
 action_q = Queue.Queue()
-
-
 def Producer_Create():
     db = order_db_handle.DBStore()
     while True:
@@ -36,8 +34,6 @@ def Producer_Create():
                 group_dict['server']['networks'] = network_list
                 start_q.put(group_dict)
         time.sleep(10)
-
-
 def Consumer_Create():
     while True:
         db_dict = start_q.get()
@@ -55,8 +51,6 @@ def Consumer_Create():
                         ports_id = op.list_port_id(network_id=network.get('in_network', None))
                         for port_id in ports_id:
                             op.float_create(float_network_id=network.get('ext_network', None), band_port_id=port_id)
-
-
 def Threading_Create(count=1):
     t_list = []
     for i in range(int(count)):
@@ -66,8 +60,6 @@ def Threading_Create(count=1):
         t.start()
     for t in t_list:
         t.join()
-
-
 def Producer_Delete():
     db = order_db_handle.DBStore()
     while True:
@@ -88,8 +80,6 @@ def Producer_Delete():
                 stop_q.put(group_dict)
             db.recycle_db(deleteing)
         time.sleep(10)
-
-
 def Consumer_Delete():
     while True:
         db_dict = stop_q.get()
@@ -99,8 +89,6 @@ def Consumer_Delete():
             id_list = op.list_server_id()
             op.delete_server(id_list)
             op.delete_float_all()
-
-
 def Threading_Delete(count=1):
     t_list = []
     for i in range(int(count)):
@@ -110,8 +98,6 @@ def Threading_Delete(count=1):
         t.start()
     for t in t_list:
         t.join()
-
-
 def Producer_Action():
     db = order_db_handle.DBStore()
     while True:

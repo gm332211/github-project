@@ -27,6 +27,7 @@ class IndexView(tabs.TabbedTableView):
 
     def get_data(self, request, context, *args, **kwargs):
         # Add data to the context here...
+        print('test')
         return context
 class LaunchOrderView(workflows.WorkflowView):
     workflow_class = project_workflows.LaunchOrder

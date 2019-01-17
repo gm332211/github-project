@@ -49,7 +49,6 @@ def get_network_resource(resource_list):
     return network_count
 def total_resource(start_time,stop_time):
     data=op.hypervisors_stats()
-    print(data)
     network_data=op.network_hypervisors_stats()
     if not global_resource:
         global_resource['ram']=data.get('memory_mb')

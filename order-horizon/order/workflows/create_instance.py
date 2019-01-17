@@ -159,13 +159,13 @@ class SetInstanceDetailsAction(workflows.Action):
         usages = quotas.tenant_quota_usages(
             self.request,
             targets=('instances', 'cores', 'ram', ))
-        available_count = usages['instances']['available']
-        if available_count < count:
-            msg = (_('The requested instance(s) cannot be launched '
-                     'as your quota will be exceeded: Available: '
-                     '%(avail)s, Requested: %(req)s.')
-                   % {'avail': available_count, 'req': count})
-            raise forms.ValidationError(msg)
+        # available_count = usages['instances']['available']
+        # if available_count < count:
+        #     msg = (_('The requested instance(s) cannot be launched '
+        #              'as your quota will be exceeded: Available: '
+        #              '%(avail)s, Requested: %(req)s.')
+        #            % {'avail': available_count, 'req': count})
+        #     raise forms.ValidationError(msg)
 
         source_type = cleaned_data.get('source_type')
         if source_type in ('volume_image_id', 'volume_snapshot_id'):
@@ -495,8 +495,6 @@ class LaunchOrder(workflows.Workflow):
         except Exception:
             exceptions.handle(request)
         return False
-
-
 def _cleanup_ports_on_failed_vm_launch(request, nics):
     ports_failing_deletes = []
     LOG.debug('Cleaning up stale VM ports.')

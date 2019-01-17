@@ -26,7 +26,6 @@ class OrderTab(tabs.TableTab):
             self._has_more = False
             error_message = _('Unable to get instances')
             exceptions.handle(self.request, error_message)
-
             return []
 
 class OrderTabs(tabs.TabGroup):

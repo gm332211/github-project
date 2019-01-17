@@ -27,16 +27,11 @@ def auth_token(func):
     def inner(self,*args,**kwargs):
         if not self.token:
             self.get_token()
-        data = func(self, *args, **kwargs)
-        error_code = False
-        try:
-            error_code=data['error']['code']
-        except:
-            pass
-        if error_code:
+        res = func(self, *args, **kwargs)
+        if res.status>=400:
             self.get_token()
-            data = func(self, *args, **kwargs)
-        return data
+            res = func(self, *args, **kwargs)
+        return res
     return inner
 class Openstack(object):
 #Admin Openstack Class
@@ -199,7 +194,6 @@ class Openstack(object):
     def hypervisors_stats(self):
         res=self.compute_request('/os-hypervisors/statistics','GET')
         data=json.loads(res.read())
-        print(data)
         hypervisors=data.get('hypervisor_statistics',None)
         return hypervisors
     def network_hypervisors_stats(self):
