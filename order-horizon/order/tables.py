@@ -122,7 +122,7 @@ class StartInstance(tables.BatchAction):
     def action_present(count):
         return ungettext_lazy(
             u"Start Order",
-            u"Start Order",
+            u"Start Orders",
             count
         )
 
@@ -130,7 +130,7 @@ class StartInstance(tables.BatchAction):
     def action_past(count):
         return ungettext_lazy(
             u"Started Order",
-            u"Started Order",
+            u"Started Orders",
             count
         )
 
@@ -150,7 +150,7 @@ class StopInstance(tables.BatchAction):
         return npgettext_lazy(
             "Action to perform (the instance is currently running)",
             u"Shut Off Order",
-            u"Shut Off Order",
+            u"Shut Off Orders",
             count
         )
 
@@ -159,7 +159,7 @@ class StopInstance(tables.BatchAction):
         return npgettext_lazy(
             "Past action (the instance is currently already Shut Off)",
             u"Shut Off Order",
-            u"Shut Off Order",
+            u"Shut Off Orders",
             count
         )
 
@@ -171,15 +171,13 @@ class StopInstance(tables.BatchAction):
 class RebootInstance(tables.BatchAction):
     name = "reboot"
     classes = ('btn-reboot',)
-    help_text = _("Restarted instances will lose any data"
-                  " not saved in persistent storage.")
     action_type = "danger"
 
     @staticmethod
     def action_present(count):
         return ungettext_lazy(
             u"Hard Reboot Order",
-            u"Hard Reboot Order",
+            u"Hard Reboot Orders",
             count
         )
 
@@ -187,7 +185,7 @@ class RebootInstance(tables.BatchAction):
     def action_past(count):
         return ungettext_lazy(
             u"Hard Rebooted Order",
-            u"Hard Rebooted Order",
+            u"Hard Rebooted Orders",
             count
         )
 
@@ -211,7 +209,7 @@ class RebuildInstance(tables.BatchAction):
         return npgettext_lazy(
             "Action to perform (the instance is currently running)",
             u"Rebuild Off Order",
-            u"Rebuild Off Order",
+            u"Rebuild Off Orders",
             count
         )
 
@@ -220,7 +218,7 @@ class RebuildInstance(tables.BatchAction):
         return npgettext_lazy(
             "Past action (the instance is currently already DisBind Off)",
             u"Rebuild Off Order",
-            u"Rebuild Off Order",
+            u"Rebuild Off Orders",
             count
         )
 
@@ -251,8 +249,6 @@ class AssociateIP(tables.LinkAction):
         return urls.reverse(self.url, args=[instance_id])
 class DisassociateIP(tables.BatchAction):
     name = "DisassociateIP"
-    help_text = _("Restarted order will lose any data"
-                  " not saved in persistent storage.")
     action_type = "danger"
 
     @staticmethod
@@ -260,7 +256,7 @@ class DisassociateIP(tables.BatchAction):
         return npgettext_lazy(
             "Action to perform (the instance is currently running)",
             u"DisBind Off Order",
-            u"DisBind Off Order",
+            u"DisBind Off Orders",
             count
         )
 
@@ -269,7 +265,7 @@ class DisassociateIP(tables.BatchAction):
         return npgettext_lazy(
             "Past action (the instance is currently already DisBind Off)",
             u"DisBind Off Order",
-            u"DisBind Off Order",
+            u"DisBind Off Orders",
             count
         )
 

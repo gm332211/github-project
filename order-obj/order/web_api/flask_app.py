@@ -1,5 +1,5 @@
-#-*- coding: utf-8 -*-
-#Auther:GM
+#-*- coding:utf-8 -*-
+# @Author:xiaoming
 from flask import jsonify
 import datetime
 from web_api.views import db_handle
@@ -175,7 +175,8 @@ def order_delete(order_id):
             if networks:
                 for network_obj in networks:
                     db.delete_db(network_obj)
-        elif order_obj.status=='created':
+        elif order_obj.status=='created' or order_obj.status=='stoping':
+            print(1)
             order_obj.status='deleteing'
             db.session.commit()
     except Exception as e:

@@ -1,3 +1,5 @@
+#-*- coding:utf-8 -*-
+# @Author:xiaoming
 from openstack import connection
 from conf import openstack_setting
 def Conn():

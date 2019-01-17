@@ -1,3 +1,5 @@
+#-*- coding:utf-8 -*-
+# @Author:xiaoming
 from sqlalchemy import Column,String,Integer,DateTime,ForeignKey,create_engine,Table
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base

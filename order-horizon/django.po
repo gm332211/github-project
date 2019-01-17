@@ -8170,8 +8170,9 @@ msgstr "创建个数"
 msgid "Launch Order"
 msgstr "创建预约"
 
-msgid "Delete Orders"
-msgstr "删除预约"
+msgid "Delete Order"
+msgid_plural "Delete Orders"
+msgstr[0] "删除预约"
 
 msgid "Order Time"
 msgstr "预约时间"
@@ -8185,41 +8186,56 @@ msgstr "浮动网络"
 msgid "Intranet"
 msgstr "内部网络"
 
+msgctxt "Power state of an Instance"
 msgid "stop"
 msgstr "待关闭"
 
+msgctxt "Current status of an Instance"
 msgid "start"
 msgstr "待开启"
 
+msgctxt "Current status of an Order"
 msgid "stoping"
 msgstr "已关闭"
 
+msgctxt "Current status of an Order"
 msgid "wait"
 msgstr "待创建"
 
+msgctxt "Current status of an Order"
 msgid "created"
 msgstr "正在使用"
 
+msgctxt "Current status of an Order"
 msgid "dead"
 msgstr "回收"
 
-msgid "DisBind Off Order"
-msgstr "解绑浮动网络"
+msgctxt "Power state of an Instance"
+msgid "deleteing"
+msgstr "删除中"
 
-msgid "Associate Floating Network"
-msgstr "绑定浮动网络"
+msgid "DisBind Off Order"
+msgid_plural "DisBind Off Orders"
+msgstr[0] "解绑浮动网络"
+
+
+
 
 msgid "Rebuild Off Order"
-msgstr "重建"
+msgid_plural "Rebuild Off Orders"
+msgstr[0] "重置虚机"
 
 msgid "Shut Off Order"
-msgstr "关机"
+msgid_plural "Shut Off Orders"
+msgstr[0] "关机"
 
 msgid "Hard Reboot Order"
-msgstr "重启"
+msgid_plural "Hard Reboot Orders"
+msgstr[0] "重启"
 
 msgid "Start Order"
-msgstr "开机"
+msgid_plural "Start Orders"
+msgstr[0] "开机"
 
 msgid "Time verify for your order Create"
 msgstr "你需要预约的时间段"
@@ -8239,9 +8255,32 @@ msgstr "总计"
 msgid "Free"
 msgstr "剩余"
 
-
 msgid "Free resource"
 msgstr "剩余资源"
 
+msgid "Restarted order will lose any data not saved in persistent storage."
+msgstr "重置虚机会丢失所以没有存放在永久存储设备上的数据。"
 
+msgid "Time verify for your order Create."
+msgstr "选择预约时间范围"
 
+msgid "Select Order for your instance."
+msgstr "预约时间范围"
+
+msgid "Associate Floating Network"
+msgstr "绑定浮动网络"
+
+msgid "Binding Float"
+msgstr "绑定浮动网络"
+
+msgid "Select Floating Network"
+msgstr "选择浮动网络"
+
+msgid "Floating Network"
+msgstr "浮动网络"
+
+msgid "In Network"
+msgstr "内部网络"
+
+msgid "Bind floating IP for your Order"
+msgstr "绑定浮动网络到预约上"

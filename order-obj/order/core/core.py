@@ -1,5 +1,5 @@
-#-*- coding: utf-8 -*-
-#Auther:GM
+#-*- coding:utf-8 -*-
+# @Author:xiaoming
 import threading
 from conf import openstack_setting as lease_conf
 from api.order import Producer_Create,Threading_Create,Producer_Delete,Threading_Delete,Producer_Action,Threading_Action

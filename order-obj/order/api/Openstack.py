@@ -1,3 +1,5 @@
+#-*- coding:utf-8 -*-
+# @Author:xiaoming
 from conf import openstack_setting as lease_conf
 import httplib, json
 #Http Request

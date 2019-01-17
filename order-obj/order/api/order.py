@@ -1,8 +1,9 @@
+#-*- coding:utf-8 -*-
+# @Author:xiaoming
 from api import Openstack
 from api import connect
 from api.views import order_db_handle
 import threading, Queue, time
-
 conn = connect.Conn()
 start_q = Queue.Queue()
 stop_q = Queue.Queue()

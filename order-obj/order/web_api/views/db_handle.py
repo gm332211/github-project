@@ -1,4 +1,5 @@
-#-*- coding: utf-8 -*-
+#-*- coding:utf-8 -*-
+# @Author:xiaoming
 from db.openstack_db import Group,Network
 from sqlalchemy import create_engine,or_
 from sqlalchemy.orm import sessionmaker

@@ -1,0 +1,7 @@
+msgid "Delete Security Group"
+msgid_plural "Delete Security Groups"
+msgstr[0] "É¾³ý°²È«×é"
+
+msgctxt "Current status of an Instance"
+msgid "Deleted"
+msgstr "É¾³ý"

@@ -1,3 +1,5 @@
+#-*- coding:utf-8 -*-
+# @Author:xiaoming
 import ConfigParser
 import os
 config = ConfigParser.ConfigParser()
